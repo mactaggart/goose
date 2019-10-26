@@ -9,5 +9,4 @@ require (
 	github.com/mattn/go-sqlite3 v1.11.0
 	github.com/pkg/errors v0.8.1
 	github.com/ziutek/mymysql v1.5.4
-	google.golang.org/appengine v1.6.5 // indirect
 )
