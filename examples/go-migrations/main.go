@@ -4,19 +4,20 @@ package main
 
 import (
 	"flag"
+	"github.com/mactaggart/goose/v3"
 	"log"
-	"os"
-
-	"github.com/pressly/goose/v3"
 	_ "modernc.org/sqlite"
+	"os"
 )
 
 var (
 	flags = flag.NewFlagSet("goose", flag.ExitOnError)
 	dir   = flags.String("dir", ".", "directory with migration files")
+	in    = goose.NewInstance(goose.Sqlite3Dialect{})
 )
 
 func main() {
+
 	flags.Parse(os.Args[1:])
 	args := flags.Args()
 
@@ -43,7 +44,7 @@ func main() {
 		arguments = append(arguments, args[3:]...)
 	}
 
-	if err := goose.Run(command, db, *dir, arguments...); err != nil {
+	if err := in.Run(command, db, *dir, arguments...); err != nil {
 		log.Fatalf("goose %v: %v", command, err)
 	}
 }

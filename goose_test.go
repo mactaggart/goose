@@ -115,8 +115,8 @@ func TestLiteBinary(t *testing.T) {
 	}
 
 	commands := []string{
-		fmt.Sprintf("./bin/lite-goose -dir=%s create user_indices sql", dir),
-		fmt.Sprintf("./bin/lite-goose -dir=%s fix", dir),
+		fmt.Sprintf("./bin/lite-goose -dialect=sqlite3 -dir=%s create user_indices sql", dir),
+		fmt.Sprintf("./bin/lite-goose -dialect=sqlite3 -dir=%s fix", dir),
 	}
 
 	for _, cmd := range commands {
@@ -178,16 +178,17 @@ func TestEmbeddedMigrations(t *testing.T) {
 		t.Fatalf("SubFS make failed: %s", err)
 	}
 
-	SetBaseFS(fsys)
-	SetDialect("sqlite3")
-	t.Cleanup(func() { SetBaseFS(nil) })
+	in := NewInstance(&Sqlite3Dialect{})
+	in.SetBaseFS(fsys)
+
+	t.Cleanup(func() { in.SetBaseFS(nil) })
 
 	t.Run("Migration cycle", func(t *testing.T) {
-		if err := Up(db, ""); err != nil {
+		if err := in.Up(db, ""); err != nil {
 			t.Errorf("Failed to run 'up' migrations: %s", err)
 		}
 
-		ver, err := GetDBVersion(db)
+		ver, err := in.GetDBVersion(db)
 		if err != nil {
 			t.Fatalf("Failed to get migrations version: %s", err)
 		}
@@ -196,11 +197,11 @@ func TestEmbeddedMigrations(t *testing.T) {
 			t.Errorf("Expected version 3 after 'up', got %d", ver)
 		}
 
-		if err := Reset(db, ""); err != nil {
+		if err := in.Reset(db, ""); err != nil {
 			t.Errorf("Failed to run 'down' migrations: %s", err)
 		}
 
-		ver, err = GetDBVersion(db)
+		ver, err = in.GetDBVersion(db)
 		if err != nil {
 			t.Fatalf("Failed to get migrations version: %s", err)
 		}
@@ -211,6 +212,9 @@ func TestEmbeddedMigrations(t *testing.T) {
 	})
 
 	t.Run("Create uses os fs", func(t *testing.T) {
+
+		in := NewInstance(&Sqlite3Dialect{})
+
 		tmpDir, err := os.MkdirTemp("", "test_create_osfs")
 		if err != nil {
 			t.Fatalf("Create temp dir failed: %s", err)
@@ -218,7 +222,7 @@ func TestEmbeddedMigrations(t *testing.T) {
 
 		t.Cleanup(func() { os.RemoveAll(tmpDir) })
 
-		if err := Create(db, tmpDir, "test", "sql"); err != nil {
+		if err := in.Create(db, tmpDir, "test", "sql"); err != nil {
 			t.Errorf("Failed to create migration: %s", err)
 		}
 
@@ -227,7 +231,7 @@ func TestEmbeddedMigrations(t *testing.T) {
 			t.Errorf("Failed to find created migration")
 		}
 
-		if err := Fix(tmpDir); err != nil {
+		if err := in.Fix(tmpDir); err != nil {
 			t.Errorf("Failed to 'fix' migrations: %s", err)
 		}
 

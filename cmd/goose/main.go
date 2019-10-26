@@ -7,7 +7,7 @@ import (
 	"os"
 	"runtime/debug"
 
-	"github.com/pressly/goose/v3"
+	"github.com/mactaggart/goose/v3"
 )
 
 var (
@@ -23,6 +23,7 @@ var (
 	sslcert      = flags.String("ssl-cert", "", "file path to SSL certificates in pem format (only support on mysql)")
 	sslkey       = flags.String("ssl-key", "", "file path to SSL key in pem format (only support on mysql)")
 	noVersioning = flags.Bool("no-versioning", false, "apply migration commands with no versioning, in file order, from directory pointed to")
+	dialect      = flags.String("dialect", "", "the SQL dialect use for create and fix commands only")
 )
 
 var (
@@ -54,14 +55,28 @@ func main() {
 		return
 	}
 
+	var sqlDialect string
+
+	if args[0] == "create" || args[0] == "fix" {
+		sqlDialect = *dialect
+	} else {
+		sqlDialect = args[0]
+	}
+
+	d, err := goose.ParseDialect(sqlDialect)
+	if err != nil {
+		log.Fatalf("parsing dialect: %v", dialect)
+	}
+	in := goose.NewInstance(d)
+
 	switch args[0] {
 	case "create":
-		if err := goose.Run("create", nil, *dir, args[1:]...); err != nil {
+		if err := in.Run("create", nil, *dir, args[1:]...); err != nil {
 			log.Fatalf("goose run: %v", err)
 		}
 		return
 	case "fix":
-		if err := goose.Run("fix", nil, *dir); err != nil {
+		if err := in.Run("fix", nil, *dir); err != nil {
 			log.Fatalf("goose run: %v", err)
 		}
 		return
@@ -103,7 +118,7 @@ func main() {
 	if *noVersioning {
 		options = append(options, goose.WithNoVersioning())
 	}
-	if err := goose.RunWithOptions(
+	if err := in.RunWithOptions(
 		command,
 		db,
 		*dir,

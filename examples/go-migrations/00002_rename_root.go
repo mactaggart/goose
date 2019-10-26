@@ -2,12 +2,10 @@ package main
 
 import (
 	"database/sql"
-
-	"github.com/pressly/goose/v3"
 )
 
 func init() {
-	goose.AddMigration(Up00002, Down00002)
+	in.AddMigration(Up00002, Down00002)
 }
 
 func Up00002(tx *sql.Tx) error {

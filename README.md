@@ -12,6 +12,9 @@ Goose supports [embedding SQL migrations](#embedded-sql-migrations), which means
 
 ### Goals of this fork
 
+`github.com/mactaggart/goose` is a fork of `github.com/pressly/goose` with the following changes:
+- ability to migrate multiple sqlite databases from single binary. 
+
 `github.com/pressly/goose` is a fork of `bitbucket.org/liamstask/goose` with the following changes:
 - No config files
 - [Default goose binary](./cmd/goose/main.go) can migrate SQL files only
@@ -34,7 +37,7 @@ Goose supports [embedding SQL migrations](#embedded-sql-migrations), which means
 
 # Install
 
-    $ go install github.com/pressly/goose/v3/cmd/goose@latest
+    $ go install github.com/mactaggart/goose/v3/cmd/goose@latest
 
 This will install the `goose` binary to your `$GOPATH/bin` directory.
 
@@ -262,7 +265,7 @@ import (
     "database/sql"
     "embed"
 
-    "github.com/pressly/goose/v3"
+    "github.com/mactaggart/goose/v3"
 )
 
 //go:embed migrations/*.sql
@@ -272,9 +275,10 @@ func main() {
     var db *sql.DB
     // setup database
 
-    goose.SetBaseFS(embedMigrations)
+	in := goose.NewInstance(goose.Sqlite3Dialect{})
+    in.SetBaseFS(embedMigrations)
 
-    if err := goose.Up(db, "migrations"); err != nil {
+    if err := in.Up(db, "migrations"); err != nil {
         panic(err)
     }
 
@@ -287,7 +291,7 @@ Note that we pass `"migrations"` as directory argument in `Up` because embedding
 ## Go Migrations
 
 1. Create your own goose binary, see [example](./examples/go-migrations)
-2. Import `github.com/pressly/goose`
+2. Import `github.com/mactaggart/goose`
 3. Register your migration functions
 4. Run goose command, ie. `goose.Up(db *sql.DB, dir string)`
 
@@ -299,11 +303,11 @@ package migrations
 import (
 	"database/sql"
 
-	"github.com/pressly/goose/v3"
+	"github.com/mactaggart/goose/v3"
 )
 
 func init() {
-	goose.AddMigration(Up, Down)
+	in.AddMigration(Up, Down)
 }
 
 func Up(tx *sql.Tx) error {

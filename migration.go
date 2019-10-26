@@ -3,6 +3,7 @@ package goose
 import (
 	"database/sql"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -28,6 +29,12 @@ type Migration struct {
 	UpFn         func(*sql.Tx) error // Up go migration function
 	DownFn       func(*sql.Tx) error // Down go migration function
 	noVersioning bool
+	baseFS       fs.FS
+	dialect      SQLDialect
+}
+
+func (m *Migration) GetDialect() SQLDialect {
+	return m.dialect
 }
 
 func (m *Migration) String() string {
@@ -53,7 +60,7 @@ func (m *Migration) Down(db *sql.DB) error {
 func (m *Migration) run(db *sql.DB, direction bool) error {
 	switch filepath.Ext(m.Source) {
 	case ".sql":
-		f, err := baseFS.Open(m.Source)
+		f, err := m.baseFS.Open(m.Source)
 		if err != nil {
 			return errors.Wrapf(err, "ERROR %v: failed to open SQL migration file", filepath.Base(m.Source))
 		}
@@ -64,7 +71,7 @@ func (m *Migration) run(db *sql.DB, direction bool) error {
 			return errors.Wrapf(err, "ERROR %v: failed to parse SQL migration file", filepath.Base(m.Source))
 		}
 
-		if err := runSQLMigration(db, statements, useTx, m.Version, direction, m.noVersioning); err != nil {
+		if err := m.runSQLMigration(db, statements, useTx, m.Version, direction, m.noVersioning); err != nil {
 			return errors.Wrapf(err, "ERROR %v: failed to run SQL migration", filepath.Base(m.Source))
 		}
 
@@ -76,7 +83,7 @@ func (m *Migration) run(db *sql.DB, direction bool) error {
 
 	case ".go":
 		if !m.Registered {
-			return errors.Errorf("ERROR %v: failed to run Go migration: Go functions must be registered and built into a custom binary (see https://github.com/pressly/goose/tree/master/examples/go-migrations)", m.Source)
+			return errors.Errorf("ERROR %v: failed to run Go migration: Go functions must be registered and built into a custom binary (see https://github.com/mactaggart/goose/tree/master/examples/go-migrations)", m.Source)
 		}
 		tx, err := db.Begin()
 		if err != nil {
@@ -97,12 +104,12 @@ func (m *Migration) run(db *sql.DB, direction bool) error {
 		}
 		if !m.noVersioning {
 			if direction {
-				if _, err := tx.Exec(GetDialect().insertVersionSQL(), m.Version, direction); err != nil {
+				if _, err := tx.Exec(m.GetDialect().insertVersionSQL(), m.Version, direction); err != nil {
 					tx.Rollback()
 					return errors.Wrap(err, "ERROR failed to execute transaction")
 				}
 			} else {
-				if _, err := tx.Exec(GetDialect().deleteVersionSQL(), m.Version); err != nil {
+				if _, err := tx.Exec(m.GetDialect().deleteVersionSQL(), m.Version); err != nil {
 					tx.Rollback()
 					return errors.Wrap(err, "ERROR failed to execute transaction")
 				}
@@ -137,7 +144,7 @@ func NumericComponent(name string) (int64, error) {
 
 	idx := strings.Index(base, "_")
 	if idx < 0 {
-		return 0, errors.New("no separator found")
+		return 0, fmt.Errorf("no separator found: %s", name)
 	}
 
 	n, e := strconv.ParseInt(base[:idx], 10, 64)

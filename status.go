@@ -9,12 +9,12 @@ import (
 )
 
 // Status prints the status of all migrations.
-func Status(db *sql.DB, dir string, opts ...OptionsFunc) error {
+func (in *Instance) Status(db *sql.DB, dir string, opts ...OptionsFunc) error {
 	option := &options{}
 	for _, f := range opts {
 		f(option)
 	}
-	migrations, err := CollectMigrations(dir, minVersion, maxVersion)
+	migrations, err := in.CollectMigrations(dir, minVersion, maxVersion)
 	if err != nil {
 		return errors.Wrap(err, "failed to collect migrations")
 	}
@@ -28,14 +28,14 @@ func Status(db *sql.DB, dir string, opts ...OptionsFunc) error {
 	}
 
 	// must ensure that the version table exists if we're running on a pristine DB
-	if _, err := EnsureDBVersion(db); err != nil {
+	if _, err := in.EnsureDBVersion(db); err != nil {
 		return errors.Wrap(err, "failed to ensure DB version")
 	}
 
 	log.Println("    Applied At                  Migration")
 	log.Println("    =======================================")
 	for _, migration := range migrations {
-		if err := printMigrationStatus(db, migration.Version, filepath.Base(migration.Source)); err != nil {
+		if err := in.printMigrationStatus(db, migration.Version, filepath.Base(migration.Source)); err != nil {
 			return errors.Wrap(err, "failed to print status")
 		}
 	}
@@ -43,8 +43,8 @@ func Status(db *sql.DB, dir string, opts ...OptionsFunc) error {
 	return nil
 }
 
-func printMigrationStatus(db *sql.DB, version int64, script string) error {
-	q := GetDialect().migrationSQL()
+func (in *Instance) printMigrationStatus(db *sql.DB, version int64, script string) error {
+	q := in.GetDialect().migrationSQL()
 
 	var row MigrationRecord
 

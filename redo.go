@@ -5,12 +5,12 @@ import (
 )
 
 // Redo rolls back the most recently applied migration, then runs it again.
-func Redo(db *sql.DB, dir string, opts ...OptionsFunc) error {
+func (in *Instance) Redo(db *sql.DB, dir string, opts ...OptionsFunc) error {
 	option := &options{}
 	for _, f := range opts {
 		f(option)
 	}
-	migrations, err := CollectMigrations(dir, minVersion, maxVersion)
+	migrations, err := in.CollectMigrations(dir, minVersion, maxVersion)
 	if err != nil {
 		return err
 	}
@@ -23,7 +23,7 @@ func Redo(db *sql.DB, dir string, opts ...OptionsFunc) error {
 		}
 		currentVersion = migrations[len(migrations)-1].Version
 	} else {
-		if currentVersion, err = GetDBVersion(db); err != nil {
+		if currentVersion, err = in.GetDBVersion(db); err != nil {
 			return err
 		}
 	}

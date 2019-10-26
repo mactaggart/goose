@@ -6,12 +6,12 @@ import (
 )
 
 // Down rolls back a single migration from the current version.
-func Down(db *sql.DB, dir string, opts ...OptionsFunc) error {
+func (in *Instance) Down(db *sql.DB, dir string, opts ...OptionsFunc) error {
 	option := &options{}
 	for _, f := range opts {
 		f(option)
 	}
-	migrations, err := CollectMigrations(dir, minVersion, maxVersion)
+	migrations, err := in.CollectMigrations(dir, minVersion, maxVersion)
 	if err != nil {
 		return err
 	}
@@ -23,7 +23,7 @@ func Down(db *sql.DB, dir string, opts ...OptionsFunc) error {
 		// Migrate only the latest migration down.
 		return downToNoVersioning(db, migrations, currentVersion-1)
 	}
-	currentVersion, err := GetDBVersion(db)
+	currentVersion, err := in.GetDBVersion(db)
 	if err != nil {
 		return err
 	}
@@ -35,12 +35,12 @@ func Down(db *sql.DB, dir string, opts ...OptionsFunc) error {
 }
 
 // DownTo rolls back migrations to a specific version.
-func DownTo(db *sql.DB, dir string, version int64, opts ...OptionsFunc) error {
+func (in *Instance) DownTo(db *sql.DB, dir string, version int64, opts ...OptionsFunc) error {
 	option := &options{}
 	for _, f := range opts {
 		f(option)
 	}
-	migrations, err := CollectMigrations(dir, minVersion, maxVersion)
+	migrations, err := in.CollectMigrations(dir, minVersion, maxVersion)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func DownTo(db *sql.DB, dir string, version int64, opts ...OptionsFunc) error {
 	}
 
 	for {
-		currentVersion, err := GetDBVersion(db)
+		currentVersion, err := in.GetDBVersion(db)
 		if err != nil {
 			return err
 		}

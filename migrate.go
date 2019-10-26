@@ -20,8 +20,22 @@ var (
 	// MaxVersion is the maximum allowed version.
 	MaxVersion int64 = 9223372036854775807 // max(int64)
 
-	registeredGoMigrations = map[int64]*Migration{}
 )
+
+type Instance struct {
+	registeredGoMigrations map[int64]*Migration
+	// base fs to lookup migrations
+	baseFS  fs.FS
+	dialect SQLDialect
+}
+
+func NewInstance(dialect SQLDialect) *Instance {
+	return &Instance{
+		dialect:                dialect,
+		registeredGoMigrations: make(map[int64]*Migration, 0),
+		baseFS:                 osFS{},
+	}
+}
 
 // Migrations slice.
 type Migrations []*Migration
@@ -124,75 +138,80 @@ func (ms Migrations) String() string {
 }
 
 // AddMigration adds a migration.
-func AddMigration(up func(*sql.Tx) error, down func(*sql.Tx) error) {
+func (in *Instance) AddMigration(up func(*sql.Tx) error, down func(*sql.Tx) error) {
 	_, filename, _, _ := runtime.Caller(1)
-	AddNamedMigration(filename, up, down)
+	in.AddNamedMigration(filename, up, down)
 }
 
 // AddNamedMigration : Add a named migration.
-func AddNamedMigration(filename string, up func(*sql.Tx) error, down func(*sql.Tx) error) {
+func (in *Instance) AddNamedMigration(filename string, up func(*sql.Tx) error, down func(*sql.Tx) error) {
 	v, _ := NumericComponent(filename)
-	migration := &Migration{Version: v, Next: -1, Previous: -1, Registered: true, UpFn: up, DownFn: down, Source: filename}
+	migration := &Migration{baseFS: in.baseFS, dialect: in.dialect, Version: v, Next: -1, Previous: -1, Registered: true, UpFn: up, DownFn: down, Source: filename}
 
-	if existing, ok := registeredGoMigrations[v]; ok {
+	if existing, ok := in.registeredGoMigrations[v]; ok {
 		panic(fmt.Sprintf("failed to add migration %q: version conflicts with %q", filename, existing.Source))
 	}
 
-	registeredGoMigrations[v] = migration
+	in.registeredGoMigrations[v] = migration
 }
 
-func collectMigrationsFS(fsys fs.FS, dirpath string, current, target int64) (Migrations, error) {
-	if _, err := fs.Stat(fsys, dirpath); errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("%s directory does not exist", dirpath)
-	}
+func (in *Instance) collectMigrationsFS(fsys fs.FS, dirpath string, current, target int64) (Migrations, error) {
 
 	var migrations Migrations
 
-	// SQL migration files.
-	sqlMigrationFiles, err := fs.Glob(fsys, path.Join(dirpath, "*.sql"))
-	if err != nil {
-		return nil, err
-	}
-	for _, file := range sqlMigrationFiles {
-		v, err := NumericComponent(file)
+	if fsys != nil {
+
+		if _, err := fs.Stat(fsys, dirpath); errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("%s directory does not exist", dirpath)
+		}
+
+		// SQL migration files.
+		sqlMigrationFiles, err := fs.Glob(fsys, path.Join(dirpath, "*.sql"))
 		if err != nil {
 			return nil, err
 		}
-		if versionFilter(v, current, target) {
-			migration := &Migration{Version: v, Next: -1, Previous: -1, Source: file}
-			migrations = append(migrations, migration)
+		for _, file := range sqlMigrationFiles {
+			v, err := NumericComponent(file)
+			if err != nil {
+				return nil, err
+			}
+			if versionFilter(v, current, target) {
+				migration := &Migration{baseFS: in.baseFS, dialect: in.dialect, Version: v, Next: -1, Previous: -1, Source: file}
+				migrations = append(migrations, migration)
+			}
 		}
+
+		// Go migration files
+		goMigrationFiles, err := fs.Glob(fsys, path.Join(dirpath, "*.go"))
+		if err != nil {
+			return nil, err
+		}
+		for _, file := range goMigrationFiles {
+			v, err := NumericComponent(file)
+			if err != nil {
+				continue // Skip any files that don't have version prefix.
+			}
+
+			// Skip migrations already existing migrations registered via goose.AddMigration().
+			if _, ok := in.registeredGoMigrations[v]; ok {
+				continue
+			}
+
+			if versionFilter(v, current, target) {
+				migration := &Migration{baseFS: in.baseFS, dialect: in.dialect, Version: v, Next: -1, Previous: -1, Source: file, Registered: false}
+				migrations = append(migrations, migration)
+			}
+		}
+
 	}
 
 	// Go migrations registered via goose.AddMigration().
-	for _, migration := range registeredGoMigrations {
+	for _, migration := range in.registeredGoMigrations {
 		v, err := NumericComponent(migration.Source)
 		if err != nil {
 			return nil, err
 		}
 		if versionFilter(v, current, target) {
-			migrations = append(migrations, migration)
-		}
-	}
-
-	// Go migration files
-	goMigrationFiles, err := fs.Glob(fsys, path.Join(dirpath, "*.go"))
-	if err != nil {
-		return nil, err
-	}
-	for _, file := range goMigrationFiles {
-		v, err := NumericComponent(file)
-		if err != nil {
-			continue // Skip any files that don't have version prefix.
-		}
-
-		// Skip migrations already existing migrations registered via goose.AddMigration().
-		if _, ok := registeredGoMigrations[v]; ok {
-			continue
-		}
-
-		if versionFilter(v, current, target) {
-			migration := &Migration{Version: v, Next: -1, Previous: -1, Source: file, Registered: false}
 			migrations = append(migrations, migration)
 		}
 	}
@@ -204,8 +223,8 @@ func collectMigrationsFS(fsys fs.FS, dirpath string, current, target int64) (Mig
 
 // CollectMigrations returns all the valid looking migration scripts in the
 // migrations folder and go func registry, and key them by version.
-func CollectMigrations(dirpath string, current, target int64) (Migrations, error) {
-	return collectMigrationsFS(baseFS, dirpath, current, target)
+func (in *Instance) CollectMigrations(dirpath string, current, target int64) (Migrations, error) {
+	return in.collectMigrationsFS(in.baseFS, dirpath, current, target)
 }
 
 func sortAndConnectMigrations(migrations Migrations) Migrations {
@@ -240,10 +259,10 @@ func versionFilter(v, current, target int64) bool {
 
 // EnsureDBVersion retrieves the current version for this DB.
 // Create and initialize the DB version table if it doesn't exist.
-func EnsureDBVersion(db *sql.DB) (int64, error) {
-	rows, err := GetDialect().dbVersionQuery(db)
+func (in *Instance) EnsureDBVersion(db *sql.DB) (int64, error) {
+	rows, err := in.GetDialect().dbVersionQuery(db)
 	if err != nil {
-		return 0, createVersionTable(db)
+		return 0, in.createVersionTable(db)
 	}
 	defer rows.Close()
 
@@ -289,13 +308,13 @@ func EnsureDBVersion(db *sql.DB) (int64, error) {
 
 // Create the db version table
 // and insert the initial 0 value into it
-func createVersionTable(db *sql.DB) error {
+func (in *Instance) createVersionTable(db *sql.DB) error {
 	txn, err := db.Begin()
 	if err != nil {
 		return err
 	}
 
-	d := GetDialect()
+	d := in.GetDialect()
 
 	if _, err := txn.Exec(d.createVersionTableSQL()); err != nil {
 		txn.Rollback()
@@ -313,8 +332,8 @@ func createVersionTable(db *sql.DB) error {
 }
 
 // GetDBVersion is an alias for EnsureDBVersion, but returns -1 in error.
-func GetDBVersion(db *sql.DB) (int64, error) {
-	version, err := EnsureDBVersion(db)
+func (in *Instance) GetDBVersion(db *sql.DB) (int64, error) {
+	version, err := in.EnsureDBVersion(db)
 	if err != nil {
 		return -1, err
 	}

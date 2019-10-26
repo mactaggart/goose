@@ -23,7 +23,7 @@ func TestMigrationSort(t *testing.T) {
 }
 
 func newMigration(v int64, src string) *Migration {
-	return &Migration{Version: v, Previous: -1, Next: -1, Source: src}
+	return &Migration{baseFS: osFS{}, dialect: Sqlite3Dialect{}, Version: v, Previous: -1, Next: -1, Source: src}
 }
 
 func validateMigrationSort(t *testing.T, ms Migrations, sorted []int64) {

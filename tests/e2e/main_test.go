@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/mactaggart/goose/v3"
 	"log"
 	"os"
 	"os/signal"
@@ -27,6 +28,7 @@ const (
 
 // Flags.
 var (
+	in    *goose.Instance
 	debug = flag.Bool(
 		"debug",
 		false,
@@ -98,8 +100,10 @@ func TestMain(m *testing.M) {
 func newDockerDB(t *testing.T) (*sql.DB, error) {
 	switch *dialect {
 	case dialectPostgres:
+		in = goose.NewInstance(goose.PostgresDialect{})
 		return newDockerPostgresDB(t, *bindPort)
 	case dialectMySQL:
+		in = goose.NewInstance(goose.MySQLDialect{})
 		return newDockerMariaDB(t, *bindPort)
 	}
 	return nil, fmt.Errorf("unsupported dialect: %q", *dialect)

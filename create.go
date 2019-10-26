@@ -26,11 +26,11 @@ func SetSequential(s bool) {
 }
 
 // Create writes a new blank migration file.
-func CreateWithTemplate(db *sql.DB, dir string, tmpl *template.Template, name, migrationType string) error {
+func (in *Instance) CreateWithTemplate(db *sql.DB, dir string, tmpl *template.Template, name, migrationType string) error {
 	var version string
 	if sequential {
 		// always use DirFS here because it's modifying operation
-		migrations, err := collectMigrationsFS(osFS{}, dir, minVersion, maxVersion)
+		migrations, err := in.collectMigrationsFS(osFS{}, dir, minVersion, maxVersion)
 		if err != nil {
 			return err
 		}
@@ -83,8 +83,8 @@ func CreateWithTemplate(db *sql.DB, dir string, tmpl *template.Template, name, m
 }
 
 // Create writes a new blank migration file.
-func Create(db *sql.DB, dir, name, migrationType string) error {
-	return CreateWithTemplate(db, dir, nil, name, migrationType)
+func (in *Instance) Create(db *sql.DB, dir, name, migrationType string) error {
+	return in.CreateWithTemplate(db, dir, nil, name, migrationType)
 }
 
 var sqlMigrationTemplate = template.Must(template.New("goose.sql-migration").Parse(`-- +goose Up
@@ -102,7 +102,7 @@ var goSQLMigrationTemplate = template.Must(template.New("goose.go-migration").Pa
 
 import (
 	"database/sql"
-	"github.com/pressly/goose/v3"
+	goose "github.com/mactaggart/goose/v3"
 )
 
 func init() {

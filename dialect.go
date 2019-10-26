@@ -15,35 +15,31 @@ type SQLDialect interface {
 	dbVersionQuery(db *sql.DB) (*sql.Rows, error)
 }
 
-var dialect SQLDialect = &PostgresDialect{}
-
 // GetDialect gets the SQLDialect
-func GetDialect() SQLDialect {
-	return dialect
+func (in *Instance) GetDialect() SQLDialect {
+	return in.dialect
 }
 
-// SetDialect sets the SQLDialect
-func SetDialect(d string) error {
+// ParseDialect returns a SQLDialect
+func ParseDialect(d string) (SQLDialect, error) {
 	switch d {
 	case "postgres", "pgx":
-		dialect = &PostgresDialect{}
+		return &PostgresDialect{}, nil
 	case "mysql":
-		dialect = &MySQLDialect{}
+		return &MySQLDialect{}, nil
 	case "sqlite3", "sqlite":
-		dialect = &Sqlite3Dialect{}
+		return &Sqlite3Dialect{}, nil
 	case "mssql":
-		dialect = &SqlServerDialect{}
+		return &SqlServerDialect{}, nil
 	case "redshift":
-		dialect = &RedshiftDialect{}
+		return &RedshiftDialect{}, nil
 	case "tidb":
-		dialect = &TiDBDialect{}
+		return &TiDBDialect{}, nil
 	case "clickhouse":
-		dialect = &ClickHouseDialect{}
+		return &ClickHouseDialect{}, nil
 	default:
-		return fmt.Errorf("%q: unknown dialect", d)
+		return nil, fmt.Errorf("%q: unknown dialect", d)
 	}
-
-	return nil
 }
 
 ////////////////////////////
@@ -76,7 +72,7 @@ func (pg PostgresDialect) dbVersionQuery(db *sql.DB) (*sql.Rows, error) {
 	return rows, err
 }
 
-func (m PostgresDialect) migrationSQL() string {
+func (pg PostgresDialect) migrationSQL() string {
 	return fmt.Sprintf("SELECT tstamp, is_applied FROM %s WHERE version_id=$1 ORDER BY tstamp DESC LIMIT 1", TableName())
 }
 

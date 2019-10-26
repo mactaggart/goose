@@ -23,10 +23,10 @@ func TestSequential(t *testing.T) {
 
 	commands := []string{
 		"go build -o ./bin/create-goose ./cmd/goose",
-		fmt.Sprintf("./bin/create-goose -s -dir=%s create create_table", dir),
-		fmt.Sprintf("./bin/create-goose -s -dir=%s create add_users", dir),
-		fmt.Sprintf("./bin/create-goose -s -dir=%s create add_indices", dir),
-		fmt.Sprintf("./bin/create-goose -s -dir=%s create update_users", dir),
+		fmt.Sprintf("./bin/create-goose -s -dialect=sqlite3 -dir=%s create create_table", dir),
+		fmt.Sprintf("./bin/create-goose -s -dialect=sqlite3 -dir=%s create add_users", dir),
+		fmt.Sprintf("./bin/create-goose -s -dialect=sqlite3 -dir=%s create add_indices", dir),
+		fmt.Sprintf("./bin/create-goose -s -dialect=sqlite3 -dir=%s create update_users", dir),
 	}
 
 	for _, cmd := range commands {

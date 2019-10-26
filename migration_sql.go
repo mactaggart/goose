@@ -15,7 +15,7 @@ import (
 //
 // All statements following an Up or Down directive are grouped together
 // until another direction directive is found.
-func runSQLMigration(db *sql.DB, statements []string, useTx bool, v int64, direction bool, noVersioning bool) error {
+func (m *Migration) runSQLMigration(db *sql.DB, statements []string, useTx bool, v int64, direction bool, noVersioning bool) error {
 	if useTx {
 		// TRANSACTION.
 
@@ -37,13 +37,13 @@ func runSQLMigration(db *sql.DB, statements []string, useTx bool, v int64, direc
 
 		if !noVersioning {
 			if direction {
-				if _, err := tx.Exec(GetDialect().insertVersionSQL(), v, direction); err != nil {
+				if _, err := tx.Exec(m.GetDialect().insertVersionSQL(), v, direction); err != nil {
 					verboseInfo("Rollback transaction")
 					tx.Rollback()
 					return errors.Wrap(err, "failed to insert new goose version")
 				}
 			} else {
-				if _, err := tx.Exec(GetDialect().deleteVersionSQL(), v); err != nil {
+				if _, err := tx.Exec(m.GetDialect().deleteVersionSQL(), v); err != nil {
 					verboseInfo("Rollback transaction")
 					tx.Rollback()
 					return errors.Wrap(err, "failed to delete goose version")
@@ -68,11 +68,11 @@ func runSQLMigration(db *sql.DB, statements []string, useTx bool, v int64, direc
 	}
 	if !noVersioning {
 		if direction {
-			if _, err := db.Exec(GetDialect().insertVersionSQL(), v, direction); err != nil {
+			if _, err := db.Exec(m.GetDialect().insertVersionSQL(), v, direction); err != nil {
 				return errors.Wrap(err, "failed to insert new goose version")
 			}
 		} else {
-			if _, err := db.Exec(GetDialect().deleteVersionSQL(), v); err != nil {
+			if _, err := db.Exec(m.GetDialect().deleteVersionSQL(), v); err != nil {
 				return errors.Wrap(err, "failed to delete goose version")
 			}
 		}

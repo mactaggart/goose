@@ -7,14 +7,14 @@ import (
 )
 
 // Version prints the current version of the database.
-func Version(db *sql.DB, dir string, opts ...OptionsFunc) error {
+func (in *Instance) Version(db *sql.DB, dir string, opts ...OptionsFunc) error {
 	option := &options{}
 	for _, f := range opts {
 		f(option)
 	}
 	if option.noVersioning {
 		var current int64
-		migrations, err := CollectMigrations(dir, minVersion, maxVersion)
+		migrations, err := in.CollectMigrations(dir, minVersion, maxVersion)
 		if err != nil {
 			return errors.Wrap(err, "failed to collect migrations")
 		}
@@ -25,7 +25,7 @@ func Version(db *sql.DB, dir string, opts ...OptionsFunc) error {
 		return nil
 	}
 
-	current, err := GetDBVersion(db)
+	current, err := in.GetDBVersion(db)
 	if err != nil {
 		return err
 	}

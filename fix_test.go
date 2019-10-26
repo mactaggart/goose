@@ -23,11 +23,11 @@ func TestFix(t *testing.T) {
 
 	commands := []string{
 		"go build -o ./bin/fix-goose ./cmd/goose",
-		fmt.Sprintf("./bin/fix-goose -dir=%s create create_table", dir),
-		fmt.Sprintf("./bin/fix-goose -dir=%s create add_users", dir),
-		fmt.Sprintf("./bin/fix-goose -dir=%s create add_indices", dir),
-		fmt.Sprintf("./bin/fix-goose -dir=%s create update_users", dir),
-		fmt.Sprintf("./bin/fix-goose -dir=%s fix", dir),
+		fmt.Sprintf("./bin/fix-goose -dialect=sqlite3 -dir=%s create create_table", dir),
+		fmt.Sprintf("./bin/fix-goose -dialect=sqlite3 -dir=%s create add_users", dir),
+		fmt.Sprintf("./bin/fix-goose -dialect=sqlite3 -dir=%s create add_indices", dir),
+		fmt.Sprintf("./bin/fix-goose -dialect=sqlite3 -dir=%s create update_users", dir),
+		fmt.Sprintf("./bin/fix-goose -dialect=sqlite3 -dir=%s fix", dir),
 	}
 
 	for _, cmd := range commands {
@@ -56,9 +56,9 @@ func TestFix(t *testing.T) {
 
 	// add more migrations and then fix it
 	commands = []string{
-		fmt.Sprintf("./bin/fix-goose -dir=%s create remove_column", dir),
-		fmt.Sprintf("./bin/fix-goose -dir=%s create create_books_table", dir),
-		fmt.Sprintf("./bin/fix-goose -dir=%s fix", dir),
+		fmt.Sprintf("./bin/fix-goose -dialect=sqlite3 -dir=%s create remove_column", dir),
+		fmt.Sprintf("./bin/fix-goose -dialect=sqlite3 -dir=%s create create_books_table", dir),
+		fmt.Sprintf("./bin/fix-goose -dialect=sqlite3 -dir=%s fix", dir),
 	}
 
 	for _, cmd := range commands {

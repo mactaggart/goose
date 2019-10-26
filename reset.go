@@ -8,20 +8,20 @@ import (
 )
 
 // Reset rolls back all migrations
-func Reset(db *sql.DB, dir string, opts ...OptionsFunc) error {
+func (in *Instance) Reset(db *sql.DB, dir string, opts ...OptionsFunc) error {
 	option := &options{}
 	for _, f := range opts {
 		f(option)
 	}
-	migrations, err := CollectMigrations(dir, minVersion, maxVersion)
+	migrations, err := in.CollectMigrations(dir, minVersion, maxVersion)
 	if err != nil {
 		return errors.Wrap(err, "failed to collect migrations")
 	}
 	if option.noVersioning {
-		return DownTo(db, dir, minVersion, opts...)
+		return in.DownTo(db, dir, minVersion, opts...)
 	}
 
-	statuses, err := dbMigrationsStatus(db)
+	statuses, err := in.dbMigrationsStatus(db)
 	if err != nil {
 		return errors.Wrap(err, "failed to get status of migrations")
 	}
@@ -39,8 +39,8 @@ func Reset(db *sql.DB, dir string, opts ...OptionsFunc) error {
 	return nil
 }
 
-func dbMigrationsStatus(db *sql.DB) (map[int64]bool, error) {
-	rows, err := GetDialect().dbVersionQuery(db)
+func (in *Instance) dbMigrationsStatus(db *sql.DB) (map[int64]bool, error) {
+	rows, err := in.GetDialect().dbVersionQuery(db)
 	if err != nil {
 		return map[int64]bool{}, nil
 	}

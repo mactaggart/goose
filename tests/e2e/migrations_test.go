@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mactaggart/goose/v3"
 	"github.com/matryer/is"
-	"github.com/pressly/goose/v3"
 )
 
 func TestMigrateUpWithReset(t *testing.T) {
@@ -16,14 +16,13 @@ func TestMigrateUpWithReset(t *testing.T) {
 
 	db, err := newDockerDB(t)
 	is.NoErr(err)
-	goose.SetDialect(*dialect)
-	migrations, err := goose.CollectMigrations(migrationsDir, 0, goose.MaxVersion)
+	migrations, err := in.CollectMigrations(migrationsDir, 0, goose.MaxVersion)
 	is.NoErr(err)
 	is.True(len(migrations) != 0)
 	// Migrate all
-	err = goose.Up(db, migrationsDir)
+	err = in.Up(db, migrationsDir)
 	is.NoErr(err)
-	currentVersion, err := goose.GetDBVersion(db)
+	currentVersion, err := in.GetDBVersion(db)
 	is.NoErr(err)
 	is.Equal(currentVersion, migrations[len(migrations)-1].Version)
 	// Validate the db migration version actually matches what goose claims it is
@@ -32,9 +31,9 @@ func TestMigrateUpWithReset(t *testing.T) {
 	is.Equal(gotVersion, currentVersion) // incorrect database version
 
 	// Migrate everything down using Reset.
-	err = goose.Reset(db, migrationsDir)
+	err = in.Reset(db, migrationsDir)
 	is.NoErr(err)
-	currentVersion, err = goose.GetDBVersion(db)
+	currentVersion, err = in.GetDBVersion(db)
 	is.NoErr(err)
 	is.Equal(currentVersion, int64(0))
 }
@@ -45,31 +44,30 @@ func TestMigrateUpWithRedo(t *testing.T) {
 
 	db, err := newDockerDB(t)
 	is.NoErr(err)
-	goose.SetDialect(*dialect)
-	migrations, err := goose.CollectMigrations(migrationsDir, 0, goose.MaxVersion)
+	migrations, err := in.CollectMigrations(migrationsDir, 0, goose.MaxVersion)
 	is.NoErr(err)
 	is.True(len(migrations) != 0)
-	startingVersion, err := goose.EnsureDBVersion(db)
+	startingVersion, err := in.EnsureDBVersion(db)
 	is.NoErr(err)
 	is.Equal(startingVersion, int64(0))
 	// Migrate all
 	for _, migration := range migrations {
 		err = migration.Up(db)
 		is.NoErr(err)
-		currentVersion, err := goose.GetDBVersion(db)
+		currentVersion, err := in.GetDBVersion(db)
 		is.NoErr(err)
 		is.True(currentVersion == migration.Version)
 
 		// Redo the previous Up migration and re-apply it.
-		err = goose.Redo(db, migrationsDir)
+		err = in.Redo(db, migrationsDir)
 		is.NoErr(err)
-		currentVersion, err = goose.GetDBVersion(db)
+		currentVersion, err = in.GetDBVersion(db)
 		is.NoErr(err)
 		is.True(currentVersion == migration.Version)
 	}
 	// Once everything is tested the version should match the highest testdata version
 	maxVersion := migrations[len(migrations)-1].Version
-	currentVersion, err := goose.GetDBVersion(db)
+	currentVersion, err := in.GetDBVersion(db)
 	is.NoErr(err)
 	is.Equal(currentVersion, maxVersion)
 }
@@ -83,15 +81,14 @@ func TestMigrateUpTo(t *testing.T) {
 	)
 	db, err := newDockerDB(t)
 	is.NoErr(err)
-	goose.SetDialect(*dialect)
-	migrations, err := goose.CollectMigrations(migrationsDir, 0, goose.MaxVersion)
+	migrations, err := in.CollectMigrations(migrationsDir, 0, goose.MaxVersion)
 	is.NoErr(err)
 	is.True(len(migrations) != 0)
 	// Migrate up to the second migration
-	err = goose.UpTo(db, migrationsDir, upToVersion)
+	err = in.UpTo(db, migrationsDir, upToVersion)
 	is.NoErr(err)
 	// Fetch the goose version from DB
-	currentVersion, err := goose.GetDBVersion(db)
+	currentVersion, err := in.GetDBVersion(db)
 	is.NoErr(err)
 	is.Equal(currentVersion, upToVersion)
 	// Validate the version actually matches what goose claims it is
@@ -106,14 +103,13 @@ func TestMigrateUpByOne(t *testing.T) {
 
 	db, err := newDockerDB(t)
 	is.NoErr(err)
-	goose.SetDialect(*dialect)
-	migrations, err := goose.CollectMigrations(migrationsDir, 0, goose.MaxVersion)
+	migrations, err := in.CollectMigrations(migrationsDir, 0, goose.MaxVersion)
 	is.NoErr(err)
 	is.True(len(migrations) != 0)
 	// Apply all migrations one-by-one.
 	var counter int
 	for {
-		err := goose.UpByOne(db, migrationsDir)
+		err := in.UpByOne(db, migrationsDir)
 		counter++
 		if counter > len(migrations) {
 			is.Equal(err, goose.ErrNoNextVersion)
@@ -121,7 +117,7 @@ func TestMigrateUpByOne(t *testing.T) {
 		}
 		is.NoErr(err)
 	}
-	currentVersion, err := goose.GetDBVersion(db)
+	currentVersion, err := in.GetDBVersion(db)
 	is.NoErr(err)
 	is.Equal(currentVersion, migrations[len(migrations)-1].Version)
 	// Validate the db migration version actually matches what goose claims it is
@@ -136,8 +132,7 @@ func TestMigrateFull(t *testing.T) {
 
 	db, err := newDockerDB(t)
 	is.NoErr(err)
-	goose.SetDialect(*dialect)
-	migrations, err := goose.CollectMigrations(migrationsDir, 0, goose.MaxVersion)
+	migrations, err := in.CollectMigrations(migrationsDir, 0, goose.MaxVersion)
 	is.NoErr(err)
 	is.True(len(migrations) != 0)
 	// test retrieving invalid current goose migrations. goose cannot return a migration
@@ -158,9 +153,9 @@ func TestMigrateFull(t *testing.T) {
 
 	{
 		// Apply all up migrations
-		err = goose.Up(db, migrationsDir)
+		err = in.Up(db, migrationsDir)
 		is.NoErr(err)
-		currentVersion, err := goose.GetDBVersion(db)
+		currentVersion, err := in.GetDBVersion(db)
 		is.NoErr(err)
 		is.Equal(currentVersion, migrations[len(migrations)-1].Version)
 		// Validate the db migration version actually matches what goose claims it is
@@ -173,7 +168,7 @@ func TestMigrateFull(t *testing.T) {
 	}
 	{
 		// Apply 1 down migration
-		err := goose.Down(db, migrationsDir)
+		err := in.Down(db, migrationsDir)
 		is.NoErr(err)
 		gotVersion, err := getCurrentGooseVersion(db, goose.TableName())
 		is.NoErr(err)
@@ -182,7 +177,7 @@ func TestMigrateFull(t *testing.T) {
 	{
 		// Migrate all remaining migrations down. Should only be left with a single table:
 		// the default goose table
-		err := goose.DownTo(db, migrationsDir, 0)
+		err := in.DownTo(db, migrationsDir, 0)
 		is.NoErr(err)
 		gotVersion, err := getCurrentGooseVersion(db, goose.TableName())
 		is.NoErr(err)
