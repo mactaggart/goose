@@ -150,25 +150,29 @@ func (in *Instance) AddNamedMigration(filename string, up func(*sql.Tx) error, d
 // CollectMigrations returns all the valid looking migration scripts in the
 // migrations folder and go func registry, and key them by version.
 func (in *Instance) CollectMigrations(dirpath string, current, target int64) (Migrations, error) {
-	if _, err := os.Stat(dirpath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("%s directory does not exists", dirpath)
-	}
 
 	var migrations Migrations
 
-	// SQL migration files.
-	sqlMigrationFiles, err := filepath.Glob(dirpath + "/**.sql")
-	if err != nil {
-		return nil, err
-	}
-	for _, file := range sqlMigrationFiles {
-		v, err := NumericComponent(file)
+	if dirpath != "" {
+
+		if _, err := os.Stat(dirpath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("%s directory does not exists", dirpath)
+		}
+
+		// SQL migration files.
+		sqlMigrationFiles, err := filepath.Glob(dirpath + "/**.sql")
 		if err != nil {
 			return nil, err
 		}
-		if versionFilter(v, current, target) {
-			migration := &Migration{Version: v, Next: -1, Previous: -1, Source: file}
-			migrations = append(migrations, migration)
+		for _, file := range sqlMigrationFiles {
+			v, err := NumericComponent(file)
+			if err != nil {
+				return nil, err
+			}
+			if versionFilter(v, current, target) {
+				migration := &Migration{Version: v, Next: -1, Previous: -1, Source: file}
+				migrations = append(migrations, migration)
+			}
 		}
 	}
 
