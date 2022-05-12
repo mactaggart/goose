@@ -33,7 +33,7 @@ func NewInstance(dialect SQLDialect) *Instance {
 	return &Instance{
 		dialect:                dialect,
 		registeredGoMigrations: make(map[int64]*Migration, 0),
-		baseFS:                 osFS{},
+		baseFS:                 nil,
 	}
 }
 
